@@ -1,7 +1,7 @@
 /* =========================================================
-   Wedding Invitation — script.js
-   김민준 ♡ 박서연 (2026.10.17)
-   Vanilla JS only. Implements motion-spec.md Must/Should items.
+   Workshop Notice — script.js
+   iOS팀 워크샵 2026.05.27 (가평 테라아트랜드)
+   Vanilla JS only.
    ========================================================= */
 (function () {
   'use strict';
@@ -9,14 +9,15 @@
   // ---------------------------------------------------------
   // PLACEHOLDERS — 실제 운영 시 아래 값을 채워주세요.
   // ---------------------------------------------------------
-  const KAKAO_JS_KEY     = ''; // placeholder: 카카오 JavaScript 키 (https://developers.kakao.com/)
-  const RSVP_FORM_URL    = ''; // placeholder: Tally / Google Form / FormSubmit URL
-  const GUESTBOOK_URL    = ''; // placeholder: 외부 방명록 폼 URL
-  const SHARE_TITLE      = '김민준 ♡ 박서연 결혼합니다';
-  const SHARE_DESC       = '2026년 10월 17일 토요일 오후 2시\n그랜드 인터컨티넨탈 서울 그랜드볼룸';
+  const KAKAO_JS_KEY     = ''; // placeholder: 카카오 JavaScript 키
+  const RSVP_FORM_URL    = ''; // placeholder: RSVP 폼 URL
+  const GUESTBOOK_URL    = ''; // placeholder: 방명록 폼 URL
+  const SHARE_TITLE      = 'iOS팀 워크샵 갑니다 — 2026.05.27';
+  const SHARE_DESC       = '2026년 5월 27일 수요일 오전 10시\n가평 테라아트랜드';
   const SHARE_IMAGE      = location.origin + location.pathname.replace(/\/[^/]*$/, '/') + 'images/og-thumbnail.png';
-  const TARGET_DATE_STR  = '2026-10-17';
-  const TARGET_HOUR      = 14;
+  const TARGET_DATE_STR  = '2026-05-27';
+  const TARGET_END_DATE_STR = '2026-05-28';
+  const TARGET_HOUR      = 10;
 
   // ---------------------------------------------------------
   // HELPERS
@@ -27,6 +28,7 @@
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
   const haptic = (n) => { try { navigator.vibrate && navigator.vibrate(n); } catch (e) {} };
+  const pad = (n) => String(n).padStart(2, '0');
 
   // ---------------------------------------------------------
   // 1. HERO entrance step-in
@@ -59,13 +61,12 @@
     }, { threshold: 0.18, rootMargin: '0px 0px -40px 0px' });
     targets.forEach(el => io.observe(el));
 
-    // 갤러리 첫 슬라이드 blur reveal
     const firstSlide = $('.gallery-slide:first-child');
     if (firstSlide) firstSlide.classList.add('first-reveal');
   }
 
   // ---------------------------------------------------------
-  // 3. Petals background canvas (motion §1-A)
+  // 3. Petals background canvas
   // ---------------------------------------------------------
   function setupPetals() {
     if (isReduced()) return;
@@ -80,7 +81,6 @@
     let running = true;
     let frameCount = 0;
     let measureStart = 0;
-    let rafId = null;
 
     function resize() {
       W = window.innerWidth;
@@ -97,14 +97,14 @@
       reset(init) {
         this.x = Math.random() * W;
         this.y = init ? Math.random() * H : -30;
-        this.size = 8 + Math.random() * 8;             // 8 ~ 16
+        this.size = 8 + Math.random() * 8;
         this.rot = Math.random() * Math.PI * 2;
         this.rotSpeed = (Math.random() - 0.5) * 0.03;
-        this.dur = 14000 + Math.random() * 8000;       // 14~22s
+        this.dur = 14000 + Math.random() * 8000;
         this.start = performance.now() - (init ? Math.random() * this.dur : 0);
         this.swayAmp = 20 + Math.random() * 20;
         this.swayPhase = Math.random() * Math.PI * 2;
-        this.opacity = 0.18 + Math.random() * 0.14;    // 0.18 ~ 0.32
+        this.opacity = 0.18 + Math.random() * 0.14;
         this.color = Math.random() < 0.7 ? '#C9A2A2' : '#A8B59C';
         this.baseX = this.x;
       }
@@ -139,7 +139,6 @@
           petals[i].step(now);
           petals[i].draw();
         }
-        // 5초 후 fps 측정 → 50fps 미만 시 count 절반
         frameCount++;
         if (!measureStart) measureStart = now;
         if (now - measureStart > 5000 && frameCount > 0) {
@@ -152,39 +151,42 @@
           frameCount = 0;
         }
       }
-      rafId = requestAnimationFrame(loop);
+      requestAnimationFrame(loop);
     }
 
     resize();
     spawn();
-    rafId = requestAnimationFrame(loop);
+    requestAnimationFrame(loop);
     window.addEventListener('resize', resize, { passive: true });
 
-    // 페이지가 가려지면 일시정지 (배터리/CPU 절약)
     document.addEventListener('visibilitychange', () => {
       running = document.visibilityState !== 'hidden';
     });
   }
 
   // ---------------------------------------------------------
-  // 4. Calendar render + D-day count-up (motion §3-1)
+  // 4. Calendar render + 실시간 카운트다운
   // ---------------------------------------------------------
   function setupCalendar() {
     const tbl = $('.cal');
     if (!tbl) return;
-    const target = new Date(TARGET_DATE_STR + 'T00:00:00');
+
+    // 워크샵 당일 오전 10시를 기준 시각으로 설정
+    const target = new Date(TARGET_DATE_STR + 'T' + pad(TARGET_HOUR) + ':00:00');
+    const endDate = new Date(TARGET_END_DATE_STR + 'T00:00:00');
     const y = target.getFullYear();
     const m = target.getMonth();
     const first = new Date(y, m, 1).getDay();
     const last  = new Date(y, m + 1, 0).getDate();
     const tbody = tbl.querySelector('tbody');
 
+    // 캘린더 렌더링
     let html = '<tr>';
     for (let i = 0; i < first; i++) html += '<td></td>';
     for (let d = 1; d <= last; d++) {
       const dow = (first + d - 1) % 7;
       const cls = [];
-      if (d === target.getDate()) cls.push('today');
+      if (d === target.getDate() || d === endDate.getDate()) cls.push('today');
       if (dow === 0) cls.push('sun');
       if (dow === 6) cls.push('sat');
       html += `<td${cls.length ? ` class="${cls.join(' ')}"` : ''}><span>${d}</span></td>`;
@@ -193,55 +195,65 @@
     html += '</tr>';
     tbody.innerHTML = html;
 
-    // D-day 계산: 자정 → 자정 기준으로 정수 일수만 비교 (시각 무관)
-    const ddayNum = $('#dday-num');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const targetDay = new Date(y, m, target.getDate(), 0, 0, 0);
-    const diff = Math.round((targetDay - today) / (1000 * 60 * 60 * 24));
+    // 실시간 카운트다운
+    const ddayWrap  = $('.dday-wrap');
     const ddayLabel = $('.dday-label');
     const ddayBlock = $('.dday');
+    const ddaySub   = $('.dday-sub');
 
-    if (diff > 0) {
-      ddayNum.dataset.target = String(diff);
-      ddayNum.textContent = isReduced() ? String(diff) : '0';
-    } else if (diff === 0) {
-      ddayBlock.innerHTML = '<span class="script" style="font-size:24px;color:var(--color-primary)">오늘</span><br><span style="font-size:14px;color:var(--color-muted)">저희 두 사람의 약속이 시작됩니다</span>';
-      if (ddayLabel) ddayLabel.style.display = 'none';
-    } else {
-      ddayNum.dataset.target = String(-diff);
-      ddayNum.textContent = isReduced() ? String(-diff) : '0';
-      if (ddayLabel) ddayLabel.textContent = `함께 걸어가는 날 +`;
-      ddayBlock.firstChild.textContent = 'D + ';
+    function getOrCreateHms() {
+      let el = ddayWrap.querySelector('.dday-hms');
+      if (!el) {
+        el = document.createElement('p');
+        el.className = 'dday-hms';
+        ddaySub.insertAdjacentElement('beforebegin', el);
+      }
+      return el;
     }
 
-    // count-up 애니메이션
-    if (!isReduced() && diff !== 0) {
-      const onIntersect = (entries, obs) => {
-        entries.forEach(e => {
-          if (!e.isIntersecting) return;
-          countUp(ddayNum, parseInt(ddayNum.dataset.target, 10), 1400);
-          obs.disconnect();
-        });
-      };
-      new IntersectionObserver(onIntersect, { threshold: 0.4 })
-        .observe($('#calendar'));
+    function removeHms() {
+      const el = ddayWrap.querySelector('.dday-hms');
+      if (el) el.remove();
     }
-  }
 
-  function countUp(el, target, dur) {
-    const start = performance.now();
-    function tick(now) {
-      const t = clamp((now - start) / dur, 0, 1);
-      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
-      el.textContent = Math.round(target * eased);
-      if (t < 1) requestAnimationFrame(tick);
+    function updateCountdown() {
+      const now = new Date();
+      const diffMs = target - now;
+
+      if (diffMs > 0) {
+        // 워크샵 전: D - N 일 + HH시간 MM분 SS초
+        const days  = Math.floor(diffMs / 86400000);
+        const hours = Math.floor((diffMs % 86400000) / 3600000);
+        const mins  = Math.floor((diffMs % 3600000) / 60000);
+        const secs  = Math.floor((diffMs % 60000) / 1000);
+
+        if (ddayLabel) ddayLabel.textContent = 'iOS팀 워크샵까지';
+        ddayBlock.innerHTML = `D - <span id="dday-num">${days}</span>`;
+        getOrCreateHms().textContent = `${pad(hours)}시간 ${pad(mins)}분 ${pad(secs)}초`;
+
+      } else if (-diffMs < 1000 * 60 * 60 * 10) {
+        // 워크샵 당일 (시작 후 10시간 이내): 현장 모드
+        if (ddayLabel) ddayLabel.style.display = 'none';
+        ddayBlock.innerHTML = '<span class="script" style="font-size:24px;color:var(--color-primary)">지금 출발!</span><br><span style="font-size:14px;color:var(--color-muted)">iOS팀 워크샵이 시작됩니다</span>';
+        removeHms();
+
+      } else {
+        // 워크샵 이후: D + N
+        const elapsedDays = Math.floor(-diffMs / 86400000);
+        if (ddayLabel) ddayLabel.textContent = '워크샵으로부터';
+        ddayBlock.innerHTML = `D + <span id="dday-num">${elapsedDays}</span>`;
+        removeHms();
+      }
     }
-    requestAnimationFrame(tick);
+
+    updateCountdown();
+    if (!isReduced()) {
+      setInterval(updateCountdown, 1000);
+    }
   }
 
   // ---------------------------------------------------------
-  // 5. Gallery: swipe + nav + dots + auto-play (motion §3-2)
+  // 5. Gallery: swipe + nav + dots + auto-play
   // ---------------------------------------------------------
   let galleryAPI = null;
   function setupGallery() {
@@ -285,7 +297,6 @@
       pauseUser._t = setTimeout(() => { userPaused = false; startAuto(); }, durationMs);
     }
 
-    // Touch events
     track.addEventListener('touchstart', (e) => {
       if (e.touches.length !== 1) return;
       dragging = true;
@@ -297,7 +308,6 @@
     track.addEventListener('touchmove', (e) => {
       if (!dragging) return;
       dragX = e.touches[0].clientX - dragStartX;
-      const w = stage.clientWidth || 1;
       track.style.transform = `translateX(calc(-${idx * 100}% + ${dragX}px))`;
     }, { passive: true });
 
@@ -305,34 +315,29 @@
       if (!dragging) return;
       dragging = false;
       track.style.transition = '';
-      const threshold = 50;
-      if (dragX > threshold) { show(idx - 1); haptic(8); }
-      else if (dragX < -threshold) { show(idx + 1); haptic(8); }
+      if (dragX > 50) { show(idx - 1); haptic(8); }
+      else if (dragX < -50) { show(idx + 1); haptic(8); }
       else { show(idx); }
       pauseUser(10000);
     });
 
-    // Click navigation
     prev?.addEventListener('click', () => { show(idx - 1); haptic(8); pauseUser(10000); });
     next?.addEventListener('click', () => { show(idx + 1); haptic(8); pauseUser(10000); });
 
-    // Click slide → lightbox
     slides.forEach((slide, i) => {
       const img = $('img', slide);
       img?.addEventListener('click', () => {
-        if (Math.abs(dragX) > 5) return; // 스와이프 후 클릭 무시
+        if (Math.abs(dragX) > 5) return;
         openLightbox(i);
       });
     });
 
-    // Keyboard
     stage.tabIndex = 0;
     stage.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowLeft')  { show(idx - 1); haptic(8); pauseUser(10000); }
       if (e.key === 'ArrowRight') { show(idx + 1); haptic(8); pauseUser(10000); }
     });
 
-    // Auto-play viewport gating
     new IntersectionObserver(([entry]) => {
       inViewport = entry.isIntersecting;
       if (inViewport) startAuto(); else stopAuto();
@@ -343,7 +348,7 @@
   }
 
   // ---------------------------------------------------------
-  // 6. Lightbox + pinch zoom + double-tap (motion §3-5)
+  // 6. Lightbox + pinch zoom + double-tap
   // ---------------------------------------------------------
   let lightboxAPI = null;
   function setupLightbox() {
@@ -407,7 +412,6 @@
       }
     });
 
-    // Pinch / double-tap zoom
     img.addEventListener('touchstart', (e) => {
       lb.classList.add('is-zooming');
       if (e.touches.length === 2) {
@@ -418,7 +422,7 @@
         if (now - lastTap < 300) {
           scale = scale > 1.05 ? 1 : 2.4;
           originX = 0; originY = 0;
-          lb.classList.remove('is-zooming'); // smooth transition
+          lb.classList.remove('is-zooming');
           setTransform();
           haptic(10);
         } else {
@@ -456,16 +460,15 @@
     });
 
     lightboxAPI = { open };
-    window.openLightbox = open; // 갤러리에서 호출
+    window.openLightbox = open;
   }
 
-  // local helper bridge
   function openLightbox(i) {
     if (lightboxAPI) lightboxAPI.open(i);
   }
 
   // ---------------------------------------------------------
-  // 7. Copy account number + toast (motion §3-3)
+  // 7. Copy + toast
   // ---------------------------------------------------------
   function setupCopy() {
     $$('.copy-btn').forEach(btn => {
@@ -491,7 +494,7 @@
         if (ok) {
           btn.classList.add('is-copied');
           haptic(15);
-          showToast('계좌번호가 복사되었습니다');
+          showToast('복사되었습니다');
           setTimeout(() => btn.classList.remove('is-copied'), 1400);
         } else {
           showToast('복사에 실패했습니다. 직접 선택해주세요');
@@ -518,7 +521,7 @@
   }
 
   // ---------------------------------------------------------
-  // 9. Music toggle (motion §3-6)
+  // 9. Music toggle
   // ---------------------------------------------------------
   function setupMusic() {
     const btn = $('#music-toggle');
@@ -559,7 +562,7 @@
   }
 
   // ---------------------------------------------------------
-  // 10. Share (Kakao / link copy) (motion §3-7)
+  // 10. Share (Kakao / link copy)
   // ---------------------------------------------------------
   function setupShare() {
     const btnLink  = $('#share-link');
@@ -569,7 +572,7 @@
       try {
         await navigator.clipboard.writeText(location.href);
         haptic(15);
-        showToast('청첩장 링크가 복사되었습니다');
+        showToast('공지 링크가 복사되었습니다');
       } catch (e) {
         showToast('복사에 실패했습니다');
       }
@@ -577,7 +580,6 @@
 
     btnKakao?.addEventListener('click', () => {
       haptic(15);
-      // Kakao SDK 사용 가능 시
       if (window.Kakao && KAKAO_JS_KEY) {
         try {
           if (!window.Kakao.isInitialized()) window.Kakao.init(KAKAO_JS_KEY);
@@ -590,20 +592,18 @@
               link: { mobileWebUrl: location.href, webUrl: location.href }
             },
             buttons: [
-              { title: '청첩장 보기', link: { mobileWebUrl: location.href, webUrl: location.href } }
+              { title: '공지 보기', link: { mobileWebUrl: location.href, webUrl: location.href } }
             ]
           });
           return;
         } catch (e) { /* fallthrough */ }
       }
-      // Web Share API 폴백
       if (navigator.share) {
         navigator.share({ title: SHARE_TITLE, text: SHARE_DESC, url: location.href }).catch(() => {});
         return;
       }
-      // 최종 폴백: 링크 복사
       navigator.clipboard?.writeText(location.href);
-      showToast('청첩장 링크가 복사되었습니다');
+      showToast('공지 링크가 복사되었습니다');
     });
   }
 
@@ -652,7 +652,6 @@
     setupShare();
     setupExternalLinks();
 
-    // reduced-motion 변경 시 단순 reload (모션 일관성 보장)
     if (reducedMotion.addEventListener) {
       reducedMotion.addEventListener('change', () => location.reload());
     } else if (reducedMotion.addListener) {
